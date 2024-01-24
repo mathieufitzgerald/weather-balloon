@@ -4,12 +4,12 @@
 #include <RTClib.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP3XX.h>
-#include "I2Cdev.h"
 #include "MPU6050.h"
-#include "CHT8305C.h"
 #include "DHT.h"
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 const int redLedPin = 8; 
 const int yellowLedPin = 9;
@@ -23,16 +23,19 @@ static const int RXPin = 4, TXPin = 3; // Change these pins according to your se
 static const uint32_t GPSBaud = 9600;
 
 //defining interior temp sensor pins
+#define ONE_WIRE_BUS 9
 #define DHTPIN 2     // digital pin for dht 22
 #define DHTTYPE DHT22   // DHT 22 (AM2302)
 DHT dht(DHTPIN, DHTTYPE);
 
 // init rtc, accelgyro, cht, bmp
+RTC_DS3231 rtc;
 MPU6050 accelgyro;
-CHT8305C cht8305c;
 Adafruit_BMP3XX bmp;
 TinyGPSPlus gps;
 SoftwareSerial ss(RXPin, TXPin);
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 //init gyro
 int16_t ax, ay, az;
@@ -84,8 +87,7 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
   digitalWrite(yellowLedPin, HIGH);
-
-  cht8305c.begin();
+  sensors.begin();
 
   accelgyro.initialize();
   if (accelgyro.testConnection()) {
@@ -129,7 +131,7 @@ void setup() {
   Serial.println("initialization done.");
 
   // Initialize BMP390
-  if (!bmp.begin()) {
+  if (!bmp.begin_I2C()) {
     Serial.println("Could not find a valid BMP390 sensor, check wiring!");
     digitalWrite(yellowLedPin, LOW);
     digitalWrite(redLedPin, HIGH);
@@ -205,10 +207,11 @@ void loop() {
     dataFile.print("AZ: "); dataFile.print(az);
 
     // outside temp logging
-    float temperature = cht8305c.readTemperature();
-    float humidity = cht8305c.readHumidity();
-    dataFile.print("Exterior Temp: "); dataFile.print(temperature); dataFile.print(", ");
-    dataFile.print("Exterior Humidity: "); dataFile.print(humidity);
+    sensors.requestTemperatures();
+    float ext_temp = sensors.getTempCByIndex(0);
+    Serial.print("ext Temperature is: ");
+    Serial.println(ext_temp);
+    dataFile.print("Exterior Temp: "); dataFile.print(ext_temp);
 
     // Read from DHT22
     float h = dht.readHumidity();

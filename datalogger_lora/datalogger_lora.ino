@@ -264,4 +264,3 @@ void loop() {
   // Wait for a bit before the next log
   delay(2000);
 }
-
